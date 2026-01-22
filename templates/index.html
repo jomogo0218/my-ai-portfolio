@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 體育老師作品集</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        body { background-color: #f0f2f5; font-family: "Microsoft JhengHei", sans-serif; }
+        .hero { background: linear-gradient(135deg, #4285F4, #34A853); color: white; padding: 3rem 0; margin-bottom: 2rem; border-radius: 0 0 15px 15px; }
+        .card { border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: 0.3s; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body>
+
+    <div class="hero text-center">
+        <div class="container">
+            <h1 class="fw-bold">🏃‍♂️ 科技體育老師的作品集</h1>
+            <p class="lead">結合 AI 與教育現場，打造智慧體育課</p>
+        </div>
+    </div>
+
+    <div class="container">
+        
+        <div class="card mb-5">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">✨ Gemini AI 運動處方機</h4>
+            </div>
+            <div class="card-body">
+                <p>請輸入學生的體適能數據（例如：1600公尺跑 9 分鐘、仰臥起坐 40 下），AI 將自動生成建議。</p>
+                <form method="POST">
+                    <textarea name="fitness_data" class="form-control mb-3" rows="3" placeholder="在此輸入數據..."></textarea>
+                    <button type="submit" class="btn btn-primary w-100">生成 AI 建議</button>
+                </form>
+                
+                {% if ai_response %}
+                <div class="alert alert-success mt-4">
+                    <h5>🤖 AI 的專業建議：</h5>
+                    <hr>
+                    <div style="white-space: pre-wrap;">{{ ai_response }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <h3 class="mb-3 border-bottom pb-2">📂 過往開發專案</h3>
+        <div class="row g-4 mb-5">
+            {% for p in projects %}
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title fw-bold text-primary">{{ p.title }}</h5>
+                        <p class="card-text text-secondary">{{ p.desc }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <footer class="text-center text-muted py-3">
+            <small>&copy; 2026 Powered by Google Cloud Run & Gemini</small>
+        </footer>
+    </div>
+
+</body>
+</html>
