@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>體育成績管理系統 - 專業護眼版</title>
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        :root { --bg-slate: #f1f5f9; --text-main: #334155; --primary: #1e293b; --male-bg: #eef6ff; --female-bg: #fff1f2; }
+        body { font-family: 'Noto Sans TC', sans-serif !important; background-color: var(--bg-slate); color: var(--text-main); font-size: 14px; line-height: 1.6; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        @media (min-width: 768px) { body { font-size: 16px; } }
+        .app-header { background: var(--primary); color: white; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .nav-link { color: #94a3b8; transition: all 0.2s; border-bottom: 3px solid transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0.5rem; height: 100%; border-radius: 0.25rem; }
+        .nav-link.active { color: white; border-bottom-color: #38bdf8; background: rgba(255, 255, 255, 0.1); }
+        .nav-link:hover { color: #e2e8f0; background: rgba(255, 255, 255, 0.05); }
+        .page-section { display: none; height: 100%; overflow: hidden; animation: fadeIn 0.3s ease-out; }
+        .page-section.active { display: block; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        /* Table Styles for V46 (No Sticky) */
+        th, td { white-space: nowrap; padding: 12px 16px; border-bottom: 1px solid #f1f5f9; }
+        th { background: #f8fafc; color: #64748b; font-weight: 700; border-bottom: 2px solid #e2e8f0; }
+        tr:hover td { background-color: #f8fafc; }
+    </style>
+</head>
+<body>
+    <header class="app-header sticky top-0 z-50 shrink-0 h-16">
+        <div class="w-full h-full px-2 flex items-center justify-center">
+            <input type="file" id="importFile" class="hidden" accept=".csv,.xlsx,.xls" onchange="handleFileUpload(this)" style="display:none;">
+            <nav class="flex h-full w-full max-w-6xl items-center justify-evenly gap-0 overflow-x-auto no-scrollbar">
+                <button onclick="switchPage('p1')" class="nav-link flex-1 min-w-[60px]" id="nav-p1"><i data-lucide="clipboard-check" class="w-5 h-5 mb-1"></i><span class="text-xs font-bold">點名</span></button>
+                <button onclick="switchPage('p2')" class="nav-link flex-1 min-w-[60px]" id="nav-p2"><i data-lucide="edit-3" class="w-5 h-5 mb-1"></i><span class="text-xs font-bold">登錄</span></button>
+                <button onclick="switchPage('p5'); renderNormsViewer()" class="nav-link flex-1 min-w-[60px]" id="nav-p5"><i data-lucide="award" class="w-5 h-5 mb-1"></i><span class="text-xs font-bold">標準</span></button>
+                <button onclick="switchPage('p6')" class="nav-link flex-1 min-w-[60px]" id="nav-p6"><i data-lucide="bar-chart-2" class="w-5 h-5 mb-1"></i><span class="text-xs font-bold">報表</span></button>
+                <button onclick="switchPage('p3')" class="nav-link flex-1 min-w-[60px]" id="nav-p3"><i data-lucide="table" class="w-5 h-5 mb-1"></i><span class="text-xs font-bold">總表</span></button>
+                <button onclick="setImportMode('pre'); triggerFileUpload();" class="nav-link flex-1 min-w-[60px]" style="color: #60a5fa;"><i data-lucide="file-input" class="w-5 h-5 mb-1"></i><span class="text-xs font-bold">匯前測</span></button>
+                <button onclick="setImportMode('post'); triggerFileUpload();" class="nav-link flex-1 min-w-[60px]" style="color: #34d399;"><i data-lucide="file-spreadsheet" class="w-5 h-5 mb-1"></i><span class="text-xs font-bold">匯後測</span></button>
+                <button onclick="if(confirm('確定要清除所有資料嗎？')) window.DataService.clear();" class="nav-link flex-1 min-w-[60px]" style="color: #ef4444;"><i data-lucide="trash-2" class="w-5 h-5 mb-1"></i><span class="text-xs font-bold">清除</span></button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-hidden relative w-full bg-slate-100">
+        <section id="p1" class="page-section h-full overflow-y-auto p-4"><div id="p1-content"></div></section>
+        <section id="p2" class="page-section h-full overflow-y-auto p-4"><div id="p2-content"></div></section>
+        <section id="p3" class="page-section h-full overflow-hidden flex flex-col">
+            <div class="h-full bg-white flex flex-col"><div class="flex-1 overflow-auto"><table class="w-full text-left border-collapse text-sm"><thead id="p3-thead" class="sticky top-0 z-20 shadow-sm bg-slate-50"></thead><tbody id="p3-table-body" class="divide-y divide-slate-100"></tbody></table></div></div>
+        </section>
+        <section id="p4" class="page-section h-full overflow-y-auto p-4"><div id="p4-content"></div></section>
+        <section id="p5" class="page-section h-full overflow-hidden flex flex-col"><div id="p5-content" class="h-full flex flex-col"></div></section>
+        <section id="p6" class="page-section h-full overflow-y-auto p-4"><div id="p6-content"></div></section>
+    </main>
+
+    <script>
+        const LS_KEY = 'SPMS_DATA';
+        const ROBUST_NORMS = {
+            sitUp: { M: { 9:{gold:38,silver:34,bronze:30,average:25}, 13:{gold:48,silver:44,bronze:40,average:35}, 14:{gold:50,silver:46,bronze:42,average:37}, 15:{gold:52,silver:48,bronze:44,average:39}, 16:{gold:53,silver:49,bronze:45,average:40}, 20:{gold:55,silver:51,bronze:47,average:42} }, F: { 9:{gold:33,silver:30,bronze:26,average:22}, 13:{gold:38,silver:35,bronze:32,average:29}, 14:{gold:39,silver:36,bronze:33,average:30}, 15:{gold:40,silver:37,bronze:34,average:31}, 16:{gold:40,silver:37,bronze:34,average:31}, 20:{gold:40,silver:37,bronze:34,average:31} } },
+            standJump: { M: { 9:{gold:165,silver:155,bronze:145,average:135}, 13:{gold:215,silver:205,bronze:190,average:175}, 14:{gold:225,silver:215,bronze:205,average:185}, 15:{gold:235,silver:225,bronze:215,average:195}, 16:{gold:245,silver:235,bronze:225,average:205}, 20:{gold:260,silver:250,bronze:240,average:220} }, F: { 9:{gold:145,silver:138,bronze:130,average:120}, 13:{gold:170,silver:165,bronze:155,average:145}, 14:{gold:175,silver:168,bronze:158,average:148}, 15:{gold:180,silver:170,bronze:160,average:150}, 16:{gold:182,silver:172,bronze:162,average:150}, 20:{gold:185,silver:175,bronze:165,average:152} } },
+            sitAndReach: { M: { 9:{gold:28,silver:25,bronze:22,average:18}, 13:{gold:35,silver:31,bronze:27,average:20}, 14:{gold:37,silver:33,bronze:29,average:22}, 15:{gold:40,silver:35,bronze:31,average:24}, 16:{gold:42,silver:37,bronze:33,average:25}, 20:{gold:45,silver:40,bronze:36,average:28} }, F: { 9:{gold:34,silver:30,bronze:27,average:22}, 13:{gold:43,silver:39,bronze:35,average:28}, 14:{gold:44,silver:40,bronze:36,average:29}, 15:{gold:45,silver:41,bronze:37,average:30}, 16:{gold:46,silver:42,bronze:38,average:31}, 20:{gold:47,silver:43,bronze:39,average:32} } },
+            cardio: { M: { 9:{gold:250,silver:270,bronze:290,average:320}, 13:{gold:460,silver:500,bronze:540,average:600}, 14:{gold:440,silver:480,bronze:520,average:580}, 15:{gold:420,silver:460,bronze:500,average:560}, 16:{gold:410,silver:450,bronze:490,average:550}, 20:{gold:390,silver:430,bronze:470,average:530} }, F: { 9:{gold:270,silver:290,bronze:310,average:340}, 13:{gold:240,silver:255,bronze:270,average:300}, 14:{gold:235,silver:250,bronze:265,average:295}, 15:{gold:230,silver:245,bronze:260,average:290}, 16:{gold:230,silver:245,bronze:260,average:290}, 20:{gold:230,silver:245,bronze:260,average:290} } },
+            run800: { M: { 9:{gold:50,silver:40,bronze:30,average:20}, 13:{gold:70,silver:60,bronze:50,average:40}, 14:{gold:75,silver:65,bronze:55,average:45}, 15:{gold:80,silver:70,bronze:60,average:50}, 16:{gold:85,silver:75,bronze:65,average:55}, 20:{gold:90,silver:80,bronze:70,average:60} }, F: { 9:{gold:40,silver:35,bronze:25,average:15}, 13:{gold:55,silver:50,bronze:40,average:30}, 14:{gold:58,silver:52,bronze:42,average:30}, 15:{gold:60,silver:54,bronze:44,average:32}, 16:{gold:62,silver:56,bronze:46,average:34}, 20:{gold:62,silver:56,bronze:46,average:34} } }
+        };
+        const STATUS_CONFIG = {
+            'P': { label: '出席', icon: 'user-check', bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200' },
+            'L': { label: '遲到', icon: 'clock', bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' },
+            'A': { label: '缺席', icon: 'user-x', bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-200' },
+            'O': { label: '公假', icon: 'briefcase', bg: 'bg-sky-100', text: 'text-sky-700', border: 'border-sky-200' },
+            'S': { label: '病假', icon: 'thermometer', bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-600' }
+        };
+        let STATE = { students: [], settings: {}, norms: {}, attendanceHistory: {}, currentDate: new Date().toISOString().split('T')[0] };
+        let currentClassFilter = 'ALL'; let currentNormItem = 'sitUp'; window.importMode = 'post';
+
+        window.setImportMode = function(m) { window.importMode = m; };
+        window.triggerFileUpload = function() { document.getElementById('importFile').click(); };
+        window.handleFileUpload = function(input) {
+            const file = input.files[0]; if (!file) return;
+            const name = file.name.toLowerCase(); const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    let csv = "";
+                    if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+                        if(!window.XLSX) { alert("XLSX 載入失敗"); return; }
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, {type: 'array'});
+                        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                        csv = XLSX.utils.sheet_to_csv(sheet);
+                    } else {
+                        csv = e.target.result; if (csv.charCodeAt(0) === 0xFEFF) csv = csv.substr(1);
+                    }
+                    processRawImportData(csv);
+                } catch(ex) { alert("匯入錯誤: " + ex.message); }
+                input.value = '';
+            };
+            if(name.endsWith('.xlsx')||name.endsWith('.xls')) reader.readAsArrayBuffer(file); else reader.readAsText(file);
+        };
+
+        window.processRawImportData = function(raw) {
+            console.log("=== Import V46 (Hardcoed Row 17) ===");
+            const rows = raw.replace(/\r\n/g, '\n').split('\n');
+            const lines = rows.filter(l => l.trim().length > 0);
+            
+            // STRICT MAPPING (V44)
+            let fieldMap = { 
+                date:0, schoolType:1, grade:2, class:3, seat:4, name:4, gender:5, id_no:6, birthday:7, 
+                height:8, weight:9, sitAndReach:10, standJump:11, sitUp:12, cardio:13, run800:14 
+            };
+            let startRowIndex = 16; 
+
+            const newStudents = [];
+            for(let i = startRowIndex; i < lines.length; i++) {
+                const parts = lines[i].split(','); 
+                if(parts.length < 5) continue; 
+                const getVal = (idx) => parts[idx] ? parts[idx].replace(/"/g,'').trim() : '';
+                let nameRaw = getVal(fieldMap.name);
+                if(!nameRaw || nameRaw.includes('說明') || nameRaw.includes('姓名')) continue;
+                let seat = getVal(fieldMap.seat); let name = nameRaw;
+                const match = name.match(/^(\d+)(.+)/); if(match) { seat = match[1]; name = match[2]; }
+                
+                let age = 13; let bday = getVal(fieldMap.birthday);
+                if(bday) {
+                    const clean = bday.replace(/\D/g,'');
+                    if(clean.length >= 6) {
+                         let y = parseInt(clean.substring(0, clean.length===7?3:clean.length===8?4:2));
+                         if(y < 1900) y += 1911; age = 2025 - y;
+                    }
+                }
+                newStudents.push({
+                    id: 'S_'+i,
+                    class: getVal(fieldMap.class), seat: seat, name: name,
+                    gender: (getVal(fieldMap.gender)||'').includes('女') ? 'F' : 'M',
+                    age: age, birthday: bday,
+                    id_no: getVal(fieldMap.id_no), schoolType: getVal(fieldMap.schoolType), grade: getVal(fieldMap.grade), testDate: getVal(fieldMap.date),
+                    height: getVal(fieldMap.height), weight: getVal(fieldMap.weight),
+                    sitUp: parseFloat(getVal(fieldMap.sitUp)),
+                    standJump: parseFloat(getVal(fieldMap.standJump)),
+                    sitAndReach: parseFloat(getVal(fieldMap.sitAndReach)),
+                    cardio: parseFloat(getVal(fieldMap.cardio)),
+                    run800: parseFloat(getVal(fieldMap.run800)),
+                    todayStatus: 'P'
+                });
+            }
+            if(newStudents.length > 0) {
+                STATE.students = newStudents; STATE.norms = ROBUST_NORMS; window.DataService.save();
+                alert(`匯入完成: ${newStudents.length} 筆 (從第17列開始)`); renderSummaryTable(); switchPage('p3');
+            } else { alert('匯入失敗'); }
+        };
+
+        // --- RENDER V46 (Reordered) ---
+        function calculateFinalScoreNew(s) {
+            const pointsMap = { 'Gold': 10, 'Silver': 9, 'Bronze': 8, 'Pass': 6, 'Fail': 4, null: 0 };
+            let fitnessRaw = 0;
+            ['sitUp','standJump','sitAndReach','cardio','run800'].forEach(k => { fitnessRaw += pointsMap[s[k+'_level']] || 0; });
+            return { fitness: fitnessRaw, total: fitnessRaw }; 
+        }
+
+        function updateStudentStats(s) {
+            if(!s) return;
+            const items = ['sitUp','standJump','sitAndReach','cardio','run800'];
+            let age = s.age || 13; if(age<9) age=13; if(age>20) age=20;
+            const gender = s.gender === 'F' ? 'F' : 'M';
+            items.forEach(k => {
+                const val = s[k];
+                if(val === undefined || val === null || isNaN(val)) { s[k+'_level'] = null; return; }
+                const table = ROBUST_NORMS[k][gender]; const std = table[age] || table[13];
+                const isRev = (k==='cardio'); 
+                if(isRev) { if(val <= std.gold) s[k+'_level']='Gold'; else if(val <= std.silver) s[k+'_level']='Silver'; else if(val <= std.bronze) s[k+'_level']='Bronze'; else if(val <= std.average) s[k+'_level']='Pass'; else s[k+'_level']='Fail'; } 
+                else { if(val >= std.gold) s[k+'_level']='Gold'; else if(val >= std.silver) s[k+'_level']='Silver'; else if(val >= std.bronze) s[k+'_level']='Bronze'; else if(val >= std.average) s[k+'_level']='Pass'; else s[k+'_level']='Fail'; }
+            });
+        }
+
+        window.renderSummaryTable = function() {
+            const tbody = document.getElementById('p3-table-body');
+            const thead = document.getElementById('p3-thead');
+            if(!tbody) return;
+            let list = STATE.students;
+            if(currentClassFilter !== 'ALL') list = list.filter(s => s.class === currentClassFilter);
+
+            // V46 Header: Same Order as Import
+            thead.innerHTML = `<tr class="font-bold uppercase text-slate-600">
+                <th class="p-3 bg-slate-50">測驗日期</th>
+                <th class="p-3">學校類別</th>
+                <th class="p-3">年級</th>
+                <th class="p-3">班級</th>
+                <th class="p-3">座號</th>
+                <th class="p-3 bg-white font-black text-slate-800 border-l border-r border-slate-200">姓名</th>
+                <th class="p-3">性別</th>
+                <th class="p-3">身份證</th>
+                <th class="p-3">生日</th>
+                <th class="p-3">身高</th>
+                <th class="p-3">體重</th>
+                <th class="p-3 bg-blue-50">坐姿體前彎</th>
+                <th class="p-3 bg-blue-50">立定跳遠</th>
+                <th class="p-3 bg-blue-50">仰臥捲腹</th>
+                <th class="p-3 bg-blue-50">800/1600</th>
+                <th class="p-3 bg-blue-50">漸速跑</th>
+                <th class="p-3 text-center border-l bg-purple-50">體適能</th>
+                <th class="p-3 text-center bg-emerald-50">總分</th>
+            </tr>`;
+            
+            if(!list || list.length === 0) { tbody.innerHTML='<tr><td colspan="18" class="p-12 text-center text-slate-400">目前無資料</td></tr>'; return; }
+
+            tbody.innerHTML = list.map(s => {
+                updateStudentStats(s); const sc = calculateFinalScoreNew(s);
+                const show = (v,l) => {
+                    const c = l==='Gold'?'text-amber-500 font-bold':l==='Silver'?'text-slate-500 font-bold':l==='Bronze'?'text-orange-600 font-bold':l==='Fail'?'text-rose-500 font-bold':'text-slate-600';
+                    return v ? `<span class="${c}">${v}</span>` : '<span class="text-slate-200">-</span>';
+                };
+                return `<tr class="border-b transition hover:bg-slate-50">
+                    <td class="p-3 text-xs text-slate-500">${s.testDate || '-'}</td>
+                    <td class="p-3">${s.schoolType || '-'}</td>
+                    <td class="p-3">${s.grade || '-'}</td>
+                    <td class="p-3">${s.class}</td>
+                    <td class="p-3">${s.seat}</td>
+                    <td class="p-3 font-black bg-white border-l border-r border-slate-200">${s.name}</td>
+                    <td class="p-3">${s.gender==='F'?'女':'男'}</td>
+                    <td class="p-3 text-xs font-mono">${s.id_no || '-'}</td>
+                    <td class="p-3 text-xs">${s.birthday || '-'}</td>
+                    <td class="p-3">${s.height || '-'}</td>
+                    <td class="p-3">${s.weight || '-'}</td>
+                    <td class="p-3 bg-blue-50/10">${show(s.sitAndReach, s.sitAndReach_level)}</td>
+                    <td class="p-3 bg-blue-50/10">${show(s.standJump, s.standJump_level)}</td>
+                    <td class="p-3 bg-blue-50/10">${show(s.sitUp, s.sitUp_level)}</td>
+                    <td class="p-3 bg-blue-50/10">${show(s.cardio, s.cardio_level)}</td>
+                    <td class="p-3 bg-blue-50/10">${show(s.run800, s.run800_level)}</td>
+                    <td class="p-3 text-center font-bold text-blue-600 text-lg border-l bg-purple-50/30">${sc.fitness}</td>
+                    <td class="p-3 text-center font-black text-emerald-600 text-lg bg-emerald-50/30">${sc.total}</td>
+                </tr>`;
+            }).join('');
+        };
+        
+        window.renderReports = function() { document.getElementById('p6-content').innerHTML = '<div class="p-4">統計報表 (簡化版)</div>'; };
+        window.renderNormsViewer = function() {
+             const div = document.getElementById('p5-content'); if(!div) return;
+             const items = { sitUp:'仰臥起坐', standJump:'立定跳遠', sitAndReach:'坐姿體前彎', cardio:'心肺耐力', run800:'漸速耐力' };
+             let html = '<div class="p-4 bg-white border-b flex gap-2 overflow-x-auto">';
+             Object.keys(items).forEach(k => { html += `<button onclick="currentNormItem='${k}'; renderNormsViewer();" class="px-4 py-2 rounded-lg font-bold text-sm transition ${currentNormItem===k?'bg-blue-600 text-white shadow':'bg-slate-100 text-slate-500'}">${items[k]}</button>`; });
+             html += '</div><div class="flex-1 overflow-auto p-4 space-y-6">';
+             ['M','F'].forEach(g => {
+                 html += `<div class="rounded-xl border overflow-hidden shadow-sm"><div class="${g==='M'?'bg-blue-600':'bg-pink-500'} text-white px-4 py-2 font-bold">${g==='M'?'男生':'女生'}標準</div><div class="p-4 text-center text-sm text-slate-500">標準數據表格 (略)</div></div>`;
+             });
+             div.innerHTML = html;
+        }; 
+        window.switchPage = function(pageId) {
+            document.querySelectorAll('.page-section').forEach(el=>el.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(el=>el.classList.remove('active'));
+            let p = document.getElementById(pageId); if(p) p.classList.add('active');
+            let n = document.getElementById('nav-'+pageId); if(n) n.classList.add('active');
+            if(pageId==='p3') renderSummaryTable();
+            if(pageId==='p1') renderAttendanceTable();
+        };
+        // P1
+        window.renderAttendanceTable = function() {
+             const div = document.getElementById('p1-content'); if(!div) return;
+             let list = STATE.students; if(!list || list.length===0) { div.innerHTML='無資料'; return; }
+             const classes = Array.from(new Set(list.map(s=>s.class))).sort();
+             let html = '<div class="mb-4 flex gap-2 overflow-x-auto pb-2">';
+             classes.forEach(c => html+=`<button onclick="currentClassFilter='${c}'; renderAttendanceTable();" class="px-3 py-1 rounded-full ${currentClassFilter===c?'bg-blue-600 text-white':'bg-white border'}">${c}</button>`);
+             html += '</div><div class="grid grid-cols-2 md:grid-cols-4 gap-3">';
+             list.filter(s=>currentClassFilter==='ALL'||s.class===currentClassFilter).forEach(s=>{
+                 const st=STATUS_CONFIG[s.todayStatus]; 
+                 html+=`<div onclick="toggleStatus('${s.id}')" class="bg-white p-3 rounded shadow ${st.border} border border-l-4 cursor-pointer"><div class="font-bold">${s.seat} ${s.name}</div><div class="text-xs ${st.text}">${st.label}</div></div>`;
+             });
+             div.innerHTML=html+'</div>';
+        };
+        window.toggleStatus = function(id) {
+             const s=STATE.students.find(x=>x.id===id); if(s) { const k=Object.keys(STATUS_CONFIG); let i=k.indexOf(s.todayStatus); s.todayStatus=k[(i+1)%k.length]; window.DataService.save(); renderAttendanceTable(); }
+        };
+
+        window.DataService = { save: function() { localStorage.setItem(LS_KEY, JSON.stringify(STATE)); }, load: function() { const d = localStorage.getItem(LS_KEY); if(d) STATE.students = JSON.parse(d).students || []; }, clear: function() { localStorage.removeItem(LS_KEY); location.reload(); } };
+        window.onload = function() { window.DataService.load(); if(window.lucide) lucide.createIcons(); switchPage('p3'); };
+
+    </script>
+</body>
+</html>
